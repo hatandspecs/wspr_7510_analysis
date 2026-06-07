@@ -1,6 +1,6 @@
 # 75-10m EFHW WSPR Dataset Analysis
 
-This repository contains a Jupyter notebook that analyzes a 4-hour WSPR spot capture from a 75-10m End-Fed Half-Wave (EFHW) station. The dataset file is `7510m_wspr_spots.tsv`.
+This repository contains a Jupyter notebook that analyzes a few-hour WSPR spot capture from a 75-10m End-Fed Half-Wave (EFHW) station. The dataset file is `7510m_wspr_spots.tsv`.
 
 The notebook is intentionally structured to explain the purpose of each analysis, guide interpretation of the outputs, and draw conclusions from the actual dataset.
 
