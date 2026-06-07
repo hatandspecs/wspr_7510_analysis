@@ -336,6 +336,9 @@ This analysis creates a folium map showing the KD3CCO transmit and receive paths
 - The great-circle paths reveal true transmission geometry, showing realistic long-distance DX paths and regional skips.
 - The organized checkbox groups make it straightforward to compare band-specific footprints and TX/RX directionality.
 
+![Analysis 9 Interactive Map](analysis_images/analysis9_spots_map_screenshot.svg)
+
+
 ---
 
 ## 2. How to run and reproduce
