@@ -42,6 +42,31 @@ def maidenhead_to_latlon(locator: str):
     return lat, lon
 
 
+def _mhz_to_band(mhz: float):
+    """Map an MHz frequency to a WSPR-ish band label used in this project."""
+    try:
+        mhz = float(mhz)
+    except Exception:
+        return 'Other'
+    if 3.5 <= mhz <= 4.0:
+        return '80m'
+    elif 7.0 <= mhz <= 7.3:
+        return '40m'
+    elif 10.1 <= mhz <= 10.15:
+        return '30m'
+    elif 14.0 <= mhz <= 14.35:
+        return '20m'
+    elif 18.068 <= mhz <= 18.168:
+        return '17m'
+    elif 21.0 <= mhz <= 21.45:
+        return '15m'
+    elif 24.89 <= mhz <= 24.99:
+        return '12m'
+    elif 28.0 <= mhz <= 29.7:
+        return '10m'
+    return 'Other'
+
+
 def interpolate_great_circle(lat1, lon1, lat2, lon2, num_points=30):
     """Interpolate points along a great circle arc between two points.
     
@@ -88,10 +113,19 @@ def create_spot_map(df, bands=None, roles=None, html_path='analysis_images/analy
     Returns:
         folium.Map object.
     """
+    # If Band column is missing but MHz exists, derive Band
+    if 'Band' not in df.columns and 'MHz' in df.columns:
+        df = df.copy()
+        df['Band'] = df['MHz'].apply(_mhz_to_band)
+
     if bands is None:
-        bands = sorted(df['Band'].dropna().unique())
+        if 'Band' in df.columns:
+            bands = sorted(df['Band'].dropna().unique())
+        else:
+            bands = list(BAND_COLORS.keys())
     if roles is None:
         roles = ['heard', 'heard_by']
+    # Keep only known band labels; allow 'Other' for unknown frequencies
     bands = [b for b in bands if b in BAND_COLORS]
     if not bands:
         raise ValueError('No valid bands provided.')
@@ -118,8 +152,10 @@ def create_spot_map(df, bands=None, roles=None, html_path='analysis_images/analy
     if plot_df.empty:
         raise ValueError('No valid spot paths exist for the selected bands and roles.')
 
-    latitudes = [ll[0] for ll in plot_df['tx_ll'].tolist() + plot_df['rx_ll'].tolist()]
-    longitudes = [ll[1] for ll in plot_df['tx_ll'].tolist() + plot_df['rx_ll'].tolist()]
+    coords = plot_df['tx_ll'].tolist() + plot_df['rx_ll'].tolist()
+    latitudes = [ll[0] for ll in coords]
+    longitudes = [ll[1] for ll in coords]
+    # Simple centroid — acceptable for global overview maps
     center = [sum(latitudes) / len(latitudes), sum(longitudes) / len(longitudes)]
 
     # Create map with Mercator projection
