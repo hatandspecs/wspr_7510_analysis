@@ -305,6 +305,37 @@ This analysis examines the shortest paths on the higher bands, which informs the
 
 ---
 
+### Analysis 9: Interactive Folium Path Map
+
+**Notebook narrative:**
+
+This analysis creates a folium map showing the KD3CCO transmit and receive paths across bands. Two checkbox categories are available in the map control:
+
+- Band selection: show/hide paths for each amateur band
+- Role selection: show paths where KD3CCO heard a station, or where KD3CCO was heard by a station
+
+**Purpose:**
+- Explore the geographic footprint and path geometry interactively.
+- Separate transmit and receive directions to reveal asymmetry in the visible propagation paths.
+
+**How to interpret:**
+- Each layer corresponds to a specific band and a role filter.
+- Use the layer control checkboxes to compare DX vs local paths, and to focus on bands of interest.
+- Popup details include TX/RX callsigns, grid locators, SNR and path distance.
+
+**Actual results for `7510m_wspr_spots.tsv`:**
+- A fully interactive HTML map is saved at `analysis_images/analysis9_spots_map.html`.
+- The map includes separate layers for each band and direction category, allowing fine-grained filtering.
+- The broadest coverage is visible on 20m and 17m, with 80m and 40m showing tighter domestic/regional clusters.
+- The `heard` vs `heard_by` layer separation highlights the exchange asymmetry and the directional footprint of KD3CCO’s antenna system.
+
+**Interpretation:**
+- The map confirms the earlier statistical findings by showing the same major propagation lobes in geographic context.
+- The checkbox layers make it easy to compare the footprint for receive vs transmit paths on each band.
+- This interactive view is especially useful for spotting directional bias, band-specific path clustering, and the overall station footprint.
+
+---
+
 ## 2. How to run and reproduce
 
 Open `wspr_7510_analysis.ipynb` in Jupyter and execute all cells in order.
