@@ -309,30 +309,32 @@ This analysis examines the shortest paths on the higher bands, which informs the
 
 **Notebook narrative:**
 
-This analysis creates a folium map showing the KD3CCO transmit and receive paths across bands. Two checkbox categories are available in the map control:
+This analysis creates a folium map showing the KD3CCO transmit and receive paths across bands with two organized checkbox groups:
 
-- Band selection: show/hide paths for each amateur band
-- Role selection: show paths where KD3CCO heard a station, or where KD3CCO was heard by a station
+- **Bands group**: Select from 8 amateur bands (80m, 40m, 30m, 20m, 17m, 15m, 12m, 10m)
+- **Direction group**: Toggle between "heard" (KD3CCO receives) and "heard_by" (KD3CCO transmits)
 
 **Purpose:**
 - Explore the geographic footprint and path geometry interactively.
 - Separate transmit and receive directions to reveal asymmetry in the visible propagation paths.
+- Visualize realistic great-circle paths on the map projection.
 
 **How to interpret:**
-- Each layer corresponds to a specific band and a role filter.
-- Use the layer control checkboxes to compare DX vs local paths, and to focus on bands of interest.
-- Popup details include TX/RX callsigns, grid locators, SNR and path distance.
+- Each path line represents a WSPR spot connection and follows the true geodesic (great circle) route between TX and RX grid squares.
+- Use the organized checkboxes to filter by band and direction.
+- Popup details include TX/RX callsigns, grid locators, SNR, and path distance.
+- Thinner, cleaner path lines make it easier to see overlapping propagation patterns.
 
 **Actual results for `7510m_wspr_spots.tsv`:**
 - A fully interactive HTML map is saved at `analysis_images/analysis9_spots_map.html`.
-- The map includes separate layers for each band and direction category, allowing fine-grained filtering.
+- The map includes geodesic paths for all spot connections, grouped into 16 layers (8 bands × 2 directions).
 - The broadest coverage is visible on 20m and 17m, with 80m and 40m showing tighter domestic/regional clusters.
-- The `heard` vs `heard_by` layer separation highlights the exchange asymmetry and the directional footprint of KD3CCO’s antenna system.
+- The `heard` vs `heard_by` layer separation highlights the exchange asymmetry and the directional footprint of KD3CCO's antenna system.
 
 **Interpretation:**
 - The map confirms the earlier statistical findings by showing the same major propagation lobes in geographic context.
-- The checkbox layers make it easy to compare the footprint for receive vs transmit paths on each band.
-- This interactive view is especially useful for spotting directional bias, band-specific path clustering, and the overall station footprint.
+- The great-circle paths reveal true transmission geometry, showing realistic long-distance DX paths and regional skips.
+- The organized checkbox groups make it straightforward to compare band-specific footprints and TX/RX directionality.
 
 ---
 
@@ -345,8 +347,9 @@ Dependencies:
 - `numpy`
 - `matplotlib`
 - `seaborn`
+- `folium`
 
-The notebook reads `7510m_wspr_spots.tsv`, builds derived fields, runs the eight analyses above, and displays the results while saving the key images to `analysis_images/`.
+The notebook reads `7510m_wspr_spots.tsv`, builds derived fields, runs nine analyses, and displays the results while saving the key images and interactive map to `analysis_images/`. Analysis 9 uses the helper module `wspr_folium_map.py` to generate an interactive map with organized checkbox groups for band and direction filtering.
 
 ---
 
@@ -355,6 +358,5 @@ The notebook reads `7510m_wspr_spots.tsv`, builds derived fields, runs the eight
 1. **20m is the strongest DX band** in this capture, both by spot count and average distance.
 2. **Receive-side asymmetry is clearly present**, with a mean TX/RX SNR delta of +6.3 dB, suggesting the local RX path is weaker than the TX path.
 3. **The antenna system performs best on midbands**, with normalized `k/W` values highest on 20m, 17m, and 15m.
-4. **Higher-band inner skip boundaries are far away** on 10m and 12m, consistent with a higher takeoff angle and a scarcity of very short first-hop paths on those frequencies.
-
+4. **Higher-band inner skip boundaries are far away** on 10m and 12m, consistent with a higher takeoff angle and a scarcity of very short first-hop paths on those frequencies.5. **The interactive folium map (Analysis 9)** visually confirms the propagation patterns identified in analyses 1–8, showing realistic great-circle paths and directional asymmetry in geographic context. The organized checkbox controls make it easy to filter by band and TX/RX direction to explore specific propagation scenarios.
 These conclusions are driven by the notebook’s own analytical structure and the actual `7510m_wspr_spots.tsv` output.

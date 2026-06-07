@@ -1,8 +1,10 @@
 import pandas as pd
 import folium
-from folium import FeatureGroup
+from folium import FeatureGroup, LayerControl
 from folium.plugins import Fullscreen
 
+from math import radians, cos, sin, asin, sqrt, atan2, degrees
+from geopy.distance import geodesic
 BAND_COLORS = {
     '80m': 'blue',
     '40m': 'green',
@@ -38,6 +40,37 @@ def maidenhead_to_latlon(locator: str):
     lon += 1.0
     lat += 0.5
     return lat, lon
+
+
+def interpolate_great_circle(lat1, lon1, lat2, lon2, num_points=30):
+    """Interpolate points along a great circle arc between two points.
+    
+    This creates a curved path that appears as a true geodesic on Mercator projection.
+    """
+    # Calculate total distance
+    total_distance = geodesic((lat1, lon1), (lat2, lon2)).km
+    
+    # Calculate initial bearing
+    lat1_rad = radians(lat1)
+    lat2_rad = radians(lat2)
+    dlon = radians(lon2 - lon1)
+    
+    bearing = atan2(sin(dlon) * cos(lat2_rad),
+                   cos(lat1_rad) * sin(lat2_rad) - 
+                   sin(lat1_rad) * cos(lat2_rad) * cos(dlon))
+    bearing = degrees(bearing)
+    
+    points = [(lat1, lon1)]
+    for i in range(1, num_points - 1):
+        distance_fraction = (i / (num_points - 1)) * total_distance
+        intermediate_point = geodesic(kilometers=distance_fraction).destination(
+            (lat1, lon1), bearing
+        )
+        # Convert Point object to tuple
+        points.append((intermediate_point.latitude, intermediate_point.longitude))
+    
+    points.append((lat2, lon2))
+    return points
 
 
 def create_spot_map(df, bands=None, roles=None, html_path='analysis_images/analysis9_spots_map.html', zoom_start=3):
@@ -89,17 +122,27 @@ def create_spot_map(df, bands=None, roles=None, html_path='analysis_images/analy
     longitudes = [ll[1] for ll in plot_df['tx_ll'].tolist() + plot_df['rx_ll'].tolist()]
     center = [sum(latitudes) / len(latitudes), sum(longitudes) / len(longitudes)]
 
-    spot_map = folium.Map(location=center, zoom_start=zoom_start, tiles='OpenStreetMap')
+    # Create map with Mercator projection
+    spot_map = folium.Map(
+        location=center, 
+        zoom_start=zoom_start, 
+        tiles='OpenStreetMap',
+        prefer_canvas=False
+    )
     Fullscreen().add_to(spot_map)
 
+    # Create feature groups for each band and role combination
     for band in bands:
         for role in ['KD3CCO heard', 'KD3CCO heard by']:
             if ((role == 'KD3CCO heard' and 'heard' not in roles) or
                     (role == 'KD3CCO heard by' and 'heard_by' not in roles)):
                 continue
-            group_name = f'{band} — {role}'
-            group = FeatureGroup(name=group_name, show=(role == 'KD3CCO heard_by'))
+            
+            role_key = 'heard' if role == 'KD3CCO heard' else 'heard_by'
+            group_name = f'{band} {role_key}'
+            group = FeatureGroup(name=group_name, show=True)
             subset = plot_df[(plot_df['Band'] == band) & (plot_df['role'] == role)]
+            
             for _, row in subset.iterrows():
                 tx_lat, tx_lon = row['tx_ll']
                 rx_lat, rx_lon = row['rx_ll']
@@ -112,16 +155,23 @@ def create_spot_map(df, bands=None, roles=None, html_path='analysis_images/analy
                     f'SNR: {row.get("SNR", "n/a")} dB<br>'
                     f'k: {row.get("k", "n/a")}'
                 )
+                
+                # Create polyline with interpolated great circle path
+                gc_path = interpolate_great_circle(tx_lat, tx_lon, rx_lat, rx_lon, num_points=30)
                 folium.PolyLine(
-                    [(tx_lat, tx_lon), (rx_lat, rx_lon)],
+                    locations=gc_path,
                     color=color,
-                    weight=2,
+                    weight=0.8,
                     opacity=0.7,
                     popup=popup_html,
                     tooltip=popup_html,
                 ).add_to(group)
-            spot_map.add_child(group)
+            
+            if not subset.empty:
+                spot_map.add_child(group)
 
-    folium.LayerControl(collapsed=False).add_to(spot_map)
+    # Add native folium layer control with legend
+    LayerControl(collapsed=False, position='topright').add_to(spot_map)
+    
     spot_map.save(html_path)
     return spot_map
