@@ -67,6 +67,37 @@ def _mhz_to_band(mhz: float):
     return 'Other'
 
 
+def _ensure_continuous_path(points):
+    """Adjust longitudes so the path is continuous across the antimeridian.
+
+    This shifts longitudes by +/-360 degrees when needed so consecutive
+    longitude differences are kept within +/-180 degrees. This prevents
+    visual discontinuities when plotting on a wrapped map projection.
+    """
+    if not points:
+        return points
+    adjusted = []
+    prev_lon = None
+    for lat, lon in points:
+        lon_adj = lon
+        if prev_lon is None:
+            # start with raw lon
+            adjusted.append((lat, lon_adj))
+            prev_lon = lon_adj
+            continue
+
+        # Shift by 360 until the delta is within [-180, 180]
+        while lon_adj - prev_lon > 180:
+            lon_adj -= 360
+        while lon_adj - prev_lon < -180:
+            lon_adj += 360
+
+        adjusted.append((lat, lon_adj))
+        prev_lon = lon_adj
+
+    return adjusted
+
+
 def interpolate_great_circle(lat1, lon1, lat2, lon2, num_points=30):
     """Interpolate points along a great circle arc between two points.
     
@@ -192,8 +223,11 @@ def create_spot_map(df, bands=None, roles=None, html_path='analysis_images/analy
                     f'k: {row.get("k", "n/a")}'
                 )
                 
-                # Create polyline with interpolated great circle path
+                # Create polyline with interpolated great circle path and
+                # adjust longitudes so the line doesn't jump when crossing
+                # the prime/antimeridian.
                 gc_path = interpolate_great_circle(tx_lat, tx_lon, rx_lat, rx_lon, num_points=30)
+                gc_path = _ensure_continuous_path(gc_path)
                 folium.PolyLine(
                     locations=gc_path,
                     color=color,
