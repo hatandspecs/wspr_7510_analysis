@@ -129,7 +129,7 @@ def interpolate_great_circle(lat1, lon1, lat2, lon2, num_points=30):
     return points
 
 
-def create_spot_map(df, bands=None, roles=None, html_path='analysis_images/analysis9_spots_map.html', zoom_start=3):
+def create_spot_map(df, bands=None, roles=None, html_path='analysis_images/analysis9_spots_map.html', zoom_start=3, call_sign='KD3CCO'):
     """Create an interactive folium map of WSPR spots and save it as HTML.
 
     Parameters:
@@ -163,12 +163,12 @@ def create_spot_map(df, bands=None, roles=None, html_path='analysis_images/analy
 
     rows = []
     if 'heard' in roles:
-        heard = df[(df['RX'] == 'KD3CCO') & df['Band'].isin(bands)].copy()
-        heard['role'] = 'KD3CCO heard'
+        heard = df[(df['RX'] == call_sign) & df['Band'].isin(bands)].copy()
+        heard['role'] = f'{call_sign} heard'
         rows.append(heard)
     if 'heard_by' in roles:
-        heard_by = df[(df['TX'] == 'KD3CCO') & df['Band'].isin(bands)].copy()
-        heard_by['role'] = 'KD3CCO heard by'
+        heard_by = df[(df['TX'] == call_sign) & df['Band'].isin(bands)].copy()
+        heard_by['role'] = f'{call_sign} heard by'
         rows.append(heard_by)
     if not rows:
         raise ValueError('No rows found for selected role filters.')
@@ -200,12 +200,12 @@ def create_spot_map(df, bands=None, roles=None, html_path='analysis_images/analy
 
     # Create feature groups for each band and role combination
     for band in bands:
-        for role in ['KD3CCO heard', 'KD3CCO heard by']:
-            if ((role == 'KD3CCO heard' and 'heard' not in roles) or
-                    (role == 'KD3CCO heard by' and 'heard_by' not in roles)):
+        for role in [f'{call_sign} heard', f'{call_sign} heard by']:
+            if ((role == f'{call_sign} heard' and 'heard' not in roles) or
+                    (role == f'{call_sign} heard by' and 'heard_by' not in roles)):
                 continue
             
-            role_key = 'heard' if role == 'KD3CCO heard' else 'heard_by'
+            role_key = 'heard' if role == f'{call_sign} heard' else 'heard_by'
             group_name = f'{band} {role_key}'
             group = FeatureGroup(name=group_name, show=True)
             subset = plot_df[(plot_df['Band'] == band) & (plot_df['role'] == role)]
