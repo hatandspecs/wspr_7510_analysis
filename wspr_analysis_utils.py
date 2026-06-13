@@ -22,60 +22,81 @@ def load_tsv(filepath, time_col='Time'):
 
 
 def download_spots_from_wspr_rocks(call_sign, start_utc=None, end_utc=None):
-    """Download spots from wspr.rocks API for a call sign and optional UTC range.
+    """Download spots from the wspr.live ClickHouse HTTP API for a call sign and optional UTC range.
 
-    Queries https://wspr.rocks/api/spots and normalizes the response columns
-    to match the TSV schema used by the rest of this project.
+    Queries https://db1.wspr.live/ using ClickHouse SQL (FORMAT JSONEachRow) and
+    normalizes the response to match the TSV schema used by the rest of this project.
 
-    Column mapping from wspr.rocks JSON → DataFrame:
-        tx_sign / tx   → TX
-        rx_sign / rx   → RX
-        frequency / mhz / MHz → MHz
-        snr / SNR      → SNR
-        distance / km / k → k
-        power / watts / Watts → Watts
-        tx_loc / txGrid → txGrid
-        rx_loc / rxGrid → rxGrid
-        az / azimuth   → az
-        spot_time / time / Time → Time
+    Column mapping from wspr.live → DataFrame:
+        tx_sign   → TX
+        rx_sign   → RX
+        tx_loc    → txGrid
+        rx_loc    → rxGrid
+        frequency (Hz, int) → MHz (float, divided by 1 000 000)
+        power (dBm, int)    → Watts (float, converted via 10**((dBm-30)/10))
+        snr       → SNR
+        drift     → drift
+        distance  → k
+        azimuth   → az
+        time      → Time
+        version   → version
 
     Raises RuntimeError with response details if the HTTP request fails.
     Returns a pandas DataFrame ready for the standard pipeline.
     """
-    base = 'https://wspr.rocks/api/spots'
-    params = {'call': call_sign}
-    if start_utc is not None:
-        params['start'] = pd.to_datetime(start_utc).isoformat()
-    if end_utc is not None:
-        params['end'] = pd.to_datetime(end_utc).isoformat()
+    import json as _json
 
-    resp = requests.get(base, params=params, timeout=60)
+    base = 'https://db1.wspr.live/'
+
+    conditions = [f"(tx_sign = '{call_sign}' OR rx_sign = '{call_sign}')"]
+    if start_utc is not None:
+        ts = pd.to_datetime(start_utc).strftime('%Y-%m-%d %H:%M:%S')
+        conditions.append(f"time >= '{ts}'")
+    if end_utc is not None:
+        ts = pd.to_datetime(end_utc).strftime('%Y-%m-%d %H:%M:%S')
+        conditions.append(f"time <= '{ts}'")
+
+    where = ' AND '.join(conditions)
+    query = (
+        f"SELECT tx_sign, rx_sign, tx_loc, rx_loc, frequency, power, snr, "
+        f"drift, distance, azimuth, time, version "
+        f"FROM wspr.rx WHERE {where} ORDER BY time FORMAT JSONEachRow"
+    )
+
+    resp = requests.get(base, params={'query': query}, timeout=60)
     if not resp.ok:
         raise RuntimeError(
-            f'wspr.rocks API returned HTTP {resp.status_code}: {resp.text[:500]}'
+            f'wspr.live API returned HTTP {resp.status_code}: {resp.text[:500]}'
         )
 
-    data = resp.json()
-    if not data:
+    lines = [ln for ln in resp.text.strip().split('\n') if ln.strip()]
+    if not lines:
         return pd.DataFrame()
 
-    df = pd.DataFrame(data)
+    df = pd.DataFrame([_json.loads(ln) for ln in lines])
 
-    # Normalize column names to match the expected TSV schema
-    col_map = {
-        'tx_sign': 'TX', 'tx': 'TX',
-        'rx_sign': 'RX', 'rx': 'RX',
-        'frequency': 'MHz', 'mhz': 'MHz',
-        'snr': 'SNR',
-        'distance': 'k', 'km': 'k',
-        'power': 'Watts', 'watts': 'Watts',
-        'tx_loc': 'txGrid',
-        'rx_loc': 'rxGrid',
+    df = df.rename(columns={
+        'tx_sign': 'TX',
+        'rx_sign': 'RX',
+        'tx_loc':  'txGrid',
+        'rx_loc':  'rxGrid',
+        'snr':     'SNR',
+        'drift':   'drift',
+        'distance': 'k',
         'azimuth': 'az',
-        'spot_time': 'Time', 'time': 'Time',
-        'drift': 'drift', 'mode': 'mode',
-    }
-    df = df.rename(columns={c: col_map[c] for c in df.columns if c in col_map})
+        'time':    'Time',
+        'version': 'version',
+    })
+
+    # frequency is stored as integer Hz; convert to float MHz
+    if 'frequency' in df.columns:
+        df['MHz'] = df['frequency'].astype(float) / 1_000_000
+        df = df.drop(columns=['frequency'])
+
+    # power is stored as integer dBm; convert to watts
+    if 'power' in df.columns:
+        df['Watts'] = (10 ** ((df['power'].astype(float) - 30) / 10)).round(4)
+        df = df.drop(columns=['power'])
 
     if 'Time' in df.columns:
         df['Time'] = pd.to_datetime(df['Time'], utc=True).dt.tz_localize(None)
