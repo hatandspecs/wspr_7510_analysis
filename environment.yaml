@@ -11,6 +11,8 @@ dependencies:
   - scipy
   - requests
   - folium
+  - branca
   - geopy
   - jupyterlab
+  - pytest
   - pip
