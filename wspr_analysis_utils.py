@@ -15,6 +15,20 @@ BAND_RANGES = {
     '10m': (28.0, 29.7),
 }
 
+# Whether each band has any phone (SSB) allocation under the amateur band
+# plan. 30m is a CW/data-only WARC band with no phone privileges at any
+# license class; every other HF band here has at least an upper phone segment.
+PHONE_ALLOWED_BANDS = {
+    '80m': True,
+    '40m': True,
+    '30m': False,
+    '20m': True,
+    '17m': True,
+    '15m': True,
+    '12m': True,
+    '10m': True,
+}
+
 
 def load_tsv(filepath, time_col='Time'):
     df = pd.read_csv(filepath, sep='\t', parse_dates=[time_col])

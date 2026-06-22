@@ -1,7 +1,11 @@
+import numpy as np
 import pandas as pd
 import folium
+import matplotlib.cm as cm
+import matplotlib.colors as mcolors
 from folium import FeatureGroup, LayerControl
 from folium.plugins import Fullscreen
+from branca.colormap import LinearColormap
 
 from math import radians, cos, sin, asin, sqrt, atan2, degrees
 from geopy.distance import geodesic
@@ -242,6 +246,111 @@ def create_spot_map(df, bands=None, roles=None, html_path='analysis_images/analy
 
     # Add native folium layer control with legend
     LayerControl(collapsed=False, position='topright').add_to(spot_map)
-    
+
+    spot_map.save(html_path)
+    return spot_map
+
+
+def create_ssb_qso_map(df, band, html_path, zoom_start=3, max_power_w=100):
+    """Create a folium map for one band showing SSB QSO power feasibility.
+
+    Each spot's great-circle path is colored with the jet colormap according
+    to `required_tx_power_w`, the minimum radio output power that spot would
+    need to clear the configured SSB SNR margin. Spots where
+    `can_make_ssb_qso` is False are drawn gray and placed below the colored
+    paths; among the colored paths, the lowest-power (most favorable) ones
+    are drawn last so they end up on top.
+
+    Parameters:
+        df: pandas DataFrame for a single band, with columns txGrid, rxGrid,
+            TX, RX, SNR, Watts, required_tx_power_w, can_make_ssb_qso.
+        band: band label used in the map title and popups.
+        html_path: path to write the generated HTML map.
+        zoom_start: initial zoom level for the map.
+        max_power_w: upper bound of the color scale (the configured maximum
+            radio output power).
+
+    Returns:
+        folium.Map object.
+    """
+    plot_df = df.dropna(subset=['txGrid', 'rxGrid']).copy()
+    plot_df['tx_ll'] = plot_df['txGrid'].apply(maidenhead_to_latlon)
+    plot_df['rx_ll'] = plot_df['rxGrid'].apply(maidenhead_to_latlon)
+    plot_df = plot_df.dropna(subset=['tx_ll', 'rx_ll'])
+
+    if plot_df.empty:
+        raise ValueError(f'No valid spot paths exist for band {band}.')
+
+    coords = plot_df['tx_ll'].tolist() + plot_df['rx_ll'].tolist()
+    center = [
+        sum(ll[0] for ll in coords) / len(coords),
+        sum(ll[1] for ll in coords) / len(coords),
+    ]
+
+    spot_map = folium.Map(
+        location=center,
+        zoom_start=zoom_start,
+        tiles='OpenStreetMap',
+        prefer_canvas=False,
+    )
+    Fullscreen().add_to(spot_map)
+
+    title_html = (
+        f'<h3 style="position:fixed; top:10px; left:60px; z-index:9999; '
+        f'background:white; padding:6px 12px; border:2px solid gray; '
+        f'border-radius:4px;">{band} — SSB QSO Feasibility</h3>'
+    )
+    spot_map.get_root().html.add_child(folium.Element(title_html))
+
+    jet = cm.get_cmap('jet')
+    norm = mcolors.Normalize(vmin=0, vmax=max_power_w)
+
+    def add_path(row, color, group):
+        tx_lat, tx_lon = row['tx_ll']
+        rx_lat, rx_lon = row['rx_ll']
+        popup_html = (
+            f'<strong>{band}</strong><br>'
+            f'TX: {row["TX"]} ({row["txGrid"]})<br>'
+            f'RX: {row["RX"]} ({row["rxGrid"]})<br>'
+            f'SNR: {row.get("SNR", "n/a")} dB<br>'
+            f'Reported power: {row.get("Watts", "n/a")} W<br>'
+            f'Required power for SSB QSO: {row["required_tx_power_w"]:.1f} W'
+        )
+        gc_path = interpolate_great_circle(tx_lat, tx_lon, rx_lat, rx_lon, num_points=30)
+        gc_path = _ensure_continuous_path(gc_path)
+        folium.PolyLine(
+            locations=gc_path,
+            color=color,
+            weight=1.2,
+            opacity=0.85,
+            popup=popup_html,
+            tooltip=popup_html,
+        ).add_to(group)
+
+    # Gray (not achievable) paths are added first so they render on the
+    # bottom. Colored paths are then added from highest to lowest required
+    # power, so the lowest-power (most favorable) paths render on top.
+    no_qso_group = FeatureGroup(name=f'{band}: exceeds {max_power_w:g} W', show=True)
+    for _, row in plot_df[~plot_df['can_make_ssb_qso']].iterrows():
+        add_path(row, 'gray', no_qso_group)
+    spot_map.add_child(no_qso_group)
+
+    qso_group = FeatureGroup(name=f'{band}: possible SSB QSO', show=True)
+    passing = plot_df[plot_df['can_make_ssb_qso']].sort_values('required_tx_power_w', ascending=False)
+    for _, row in passing.iterrows():
+        color = mcolors.to_hex(jet(norm(row['required_tx_power_w'])))
+        add_path(row, color, qso_group)
+    spot_map.add_child(qso_group)
+
+    legend = LinearColormap(
+        colors=[mcolors.to_hex(jet(x)) for x in np.linspace(0, 1, 9)],
+        vmin=0,
+        vmax=max_power_w,
+        caption=f'Minimum TX power for SSB QSO, W (capped at {max_power_w:g} W)',
+    )
+    legend.add_to(spot_map)
+
+    LayerControl(collapsed=False, position='topright').add_to(spot_map)
+
     spot_map.save(html_path)
     return spot_map
