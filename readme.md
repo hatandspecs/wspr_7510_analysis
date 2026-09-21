@@ -350,3 +350,7 @@ If `environment.yaml` changes after you have already created the environment:
 ```bash
 conda env update -f environment.yaml --prune
 ```
+
+## License
+
+MIT — see [LICENSE](LICENSE). Use it, change it, no warranty.
