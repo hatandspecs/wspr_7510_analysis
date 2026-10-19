@@ -269,7 +269,7 @@ def build(records, html_path=HTML_PATH, call_sign=CALLSIGN, zoom_start=2):
 
     for rec in records:
         html = flyout(rec, call_sign)
-        # Two decimal places is about a kilometre, finer than a 4-character
+        # Two decimal places is about a kilometer, finer than a 4-character
         # grid square, and it keeps the file a fraction of the size. Every
         # longitude -- line and dot alike -- is rebased into the same window,
         # which is what makes them land on the same copy of the world.
