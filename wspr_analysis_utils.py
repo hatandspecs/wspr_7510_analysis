@@ -208,3 +208,88 @@ def load_data(tsv_path=None, call_sign=None, start_utc=None, end_utc=None, downl
     if start_utc or end_utc:
         df = filter_by_time(df, start_utc=start_utc, end_utc=end_utc)
     return df
+
+def matched_pairs(df, call_sign, window='20min'):
+    """Spots of the same remote station on the same band, both directions.
+
+    The TX/RX asymmetry test (Analysis 5) compares what a remote station
+    reported hearing from us against what we reported hearing from them,
+    close enough in time to be the same propagation. `SNR_delta` positive
+    means our transmit path beat our receive path, which points at local
+    noise rather than at the antenna.
+
+    **`SNR_delta_norm` is the figure to quote.** WSPR SNR scales dB for dB
+    with transmit power, and the two sides of a pair are rarely running the
+    same power -- so a raw delta partly measures who was louder, not which
+    path was better. Normalizing each side to one watt removes it.
+
+    This matters more than it sounds. The June 2026 EFHW capture transmitted
+    at 10 W against remote stations whose median was 5 W, and its raw mean
+    delta of +6.3 dB over 38 pairs was published as evidence of a receive
+    deficit. Normalized, that capture's mean was -0.9 dB with a bootstrap
+    confidence interval spanning zero: it was not evidence of anything. The
+    October 2026 capture, at 5 W against a 5 W median over 143 pairs, gives
+    +8.5 dB with the interval well clear of zero. Same conclusion, and only
+    the second dataset actually supports it.
+
+    **Normalizing is a repair, not a cure, and `same_power` is better.**
+    Scaling a 20 mW station's SNR up by 24 dB assumes you saw a fair sample
+    of that station, and you did not: a weak transmitter is only decoded when
+    the path is unusually good, so its reported SNRs are censored from below
+    and normalizing flatters it. One station in the October capture, HK4CZE,
+    claims 1000 W on every spot; normalized, its twelve pairs carry +38 dB
+    deltas and drag the whole mean with them.
+
+    So prefer the pairs where both ends ran the same power, where no
+    normalization is needed and nothing has to be assumed. In the October
+    capture those 66 pairs, from 19 distinct stations, give **+11.0 dB with a
+    confidence interval of [+8.6, +13.3]** -- and collapsed to one median pair
+    per station, +7.6 dB [+3.6, +11.5], so it is not one station repeating.
+
+    That subset is also the thing most captures do not have. June has one
+    equal-power pair; the three field-antenna captures have none, none and
+    three. **A TX/RX asymmetry number from those datasets cannot be rescued
+    by normalizing -- it simply is not measurable, and the honest answer is
+    to say so rather than to quote a normalized figure with a wide interval.**
+    """
+    cols = ['Time', 'Band', 'SNR', 'k', 'az']
+    if 'Watts' in df.columns:
+        cols = cols + ['Watts']
+    tx = df[df['TX'] == call_sign][cols + ['RX']].rename(
+        columns={'RX': 'Remote', 'SNR': 'SNR_tx', 'Time': 'Time_tx',
+                 'k': 'k_tx', 'az': 'az_tx', 'Watts': 'W_tx'})
+    rx = df[df['RX'] == call_sign][cols + ['TX']].rename(
+        columns={'TX': 'Remote', 'SNR': 'SNR_rx', 'Time': 'Time_rx',
+                 'k': 'k_rx', 'az': 'az_rx', 'Watts': 'W_rx'})
+    paired = pd.merge(rx, tx, on=['Remote', 'Band'], suffixes=('_rx', '_tx'))
+    paired['time_delta'] = (paired['Time_tx'] - paired['Time_rx']).abs()
+    paired = paired[paired['time_delta'] <= pd.Timedelta(window)].copy()
+    paired = paired.sort_values(
+        ['Remote', 'Band', 'Time_rx', 'time_delta']).drop_duplicates(
+        ['Remote', 'Band', 'Time_rx'])
+    paired['SNR_delta'] = paired['SNR_tx'] - paired['SNR_rx']
+    if 'W_tx' in paired.columns and 'W_rx' in paired.columns:
+        paired['SNR_delta_norm'] = (
+            (paired['SNR_tx'] - 10 * np.log10(paired['W_tx']))
+            - (paired['SNR_rx'] - 10 * np.log10(paired['W_rx'])))
+        # **The subset to trust.** See the note on censoring below.
+        paired['same_power'] = np.isclose(paired['W_tx'], paired['W_rx'])
+    paired['abs_time_delta_min'] = paired['time_delta'] / pd.Timedelta('1min')
+    return paired
+
+
+def bootstrap_mean_ci(values, n=5000, pct=95, seed=7):
+    """Percentile bootstrap interval for a mean, for small-sample sanity.
+
+    A mean over a few dozen pairs is easy to over-read, and this project has
+    already published one conclusion that a confidence interval would have
+    stopped. Returns (low, high).
+    """
+    v = np.asarray(values, dtype=float)
+    v = v[~np.isnan(v)]
+    if len(v) == 0:
+        return (float('nan'), float('nan'))
+    rng = np.random.default_rng(seed)
+    means = rng.choice(v, (n, len(v)), replace=True).mean(axis=1)
+    half = (100 - pct) / 2
+    return tuple(np.percentile(means, [half, 100 - half]))

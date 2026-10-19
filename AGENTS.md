@@ -35,10 +35,42 @@ Note the readme is lowercase `readme.md`.
 
 ## Findings worth knowing
 
-20 m is the strongest DX band on this antenna. Receive-side asymmetry is clear —
-mean TX/RX SNR delta +6.3 dB over 38 matched pairs, which points at local noise
-rather than the antenna. Normalized efficiency peaks on 20/17/15 m. SSB is
-realistically reachable on 40 m and 80 m at 100 W and not on the higher bands.
+**Revised 2026-10-19 against a three-day capture on the same antenna**
+(`7510m_cyberdeck_2026-10_spots.tsv`, 18,315 spots, `run_7510m_cyberdeck_2026-10.py`).
+The June figures below were drawn from a 3h16m afternoon capture and three of
+the five did not survive.
+
+- **20 m produces the most reports; it does not reach the furthest.** It leads
+  on spot count because it is open to the most people for the most hours. 15 m
+  and 10 m average longer paths. The old "strongest DX band by spot count and
+  average distance" was a statement about one afternoon.
+- **Receive-side asymmetry is +11.0 dB over the 66 pairs where both ends ran
+  5 W**, CI [+8.6, +13.3], from 19 distinct stations, no normalizing involved.
+  Concentrated on 40 m (+17.8) and 20 m (+10.5), absent on 30 m. The
+  band-selective shape points at a local noise source, not the antenna.
+  Probably an underestimate: the transmissions we manage to decode are the
+  better moments of each path.
+- **The old +6.3 dB figure was mostly transmit power**, not asymmetry. That
+  capture ran 10 W against a 5 W remote median; normalized it is −0.9 dB with
+  a CI spanning zero. **Prefer `matched_pairs()['same_power']` over both the raw delta and
+  `SNR_delta_norm`.** Normalizing is a repair, not a cure: a low-power station
+  is only decoded when the path is good, so its SNRs are censored and scaling
+  them up flatters it, and one station claiming 1000 W (HK4CZE) dragged the
+  normalized mean by ~3 dB. **Most captures cannot measure this at all** --
+  June has 1 equal-power pair, the three field captures have 0, 0 and 3 -- and
+  the honest answer there is "not measurable", not a normalized figure with a
+  wide interval. The original error ran through all three field-antenna
+  articles; all are corrected in place.
+- **Normalized efficiency peaks on 15/17/20 m**, which holds. The apparent
+  10 m and 12 m lead is a selection effect: those bands only open for DX, so
+  their only paths are long ones. Note `k/W` doubles when power halves, so it
+  is comparable only within a capture.
+- **SSB at 100 W is best on 80 m** (62.8% of paths, 40 W median). 20 m now
+  needs the same median power as 40 m, 126 W either way. The old "higher bands
+  need far more power" came from a DX-only sample on those bands.
+- **Unchanged across both captures:** SNR vs distance, −7.2 dB/decade in June
+  and −7.0 in October, r = −0.35 and −0.34. That is what a real relationship
+  looks like measured twice, and it calibrates how much to trust the rest.
 
 ## How I work — standing preferences
 

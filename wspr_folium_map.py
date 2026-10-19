@@ -133,12 +133,19 @@ def interpolate_great_circle(lat1, lon1, lat2, lon2, num_points=30):
     return points
 
 
-def create_spot_map(df, bands=None, roles=None, html_path='analysis_images/analysis9_spots_map.html', zoom_start=3, call_sign='KD3CCO'):
+def create_spot_map(df, bands=None, roles=None, html_path='analysis_images/analysis9_spots_map.html', zoom_start=3, call_sign='KD3CCO', dedupe=False):
     """Create an interactive folium map of WSPR spots and save it as HTML.
 
     Parameters:
         df: pandas DataFrame containing columns TX, RX, txGrid, rxGrid, Band, SNR, k.
         bands: list of band labels to include, e.g. ['20m','40m']. If None, all bands are included.
+        dedupe: draw one line per station pair per band instead of one per
+            spot. Off by default so existing maps are unchanged. Worth
+            turning on for a long capture: a three-day run is ~18,000 spots
+            and the same path repeats dozens of times, which makes a file no
+            browser enjoys and a picture no denser in information. The
+            popup then carries how many times the path was decoded and its
+            best SNR, which is the part that was being lost in the overdraw.
         roles: list of role filters, subset of ['heard', 'heard_by'].
             'heard' = rows where KD3CCO is RX.
             'heard_by' = rows where KD3CCO is TX.
@@ -186,6 +193,15 @@ def create_spot_map(df, bands=None, roles=None, html_path='analysis_images/analy
 
     if plot_df.empty:
         raise ValueError('No valid spot paths exist for the selected bands and roles.')
+
+    if dedupe:
+        key = ['TX', 'RX', 'Band', 'role']
+        counts = plot_df.groupby(key).size().rename('decodes').reset_index()
+        best = (plot_df.sort_values('SNR', ascending=False)
+                       .groupby(key, as_index=False).first())
+        plot_df = best.merge(counts, on=key)
+        plot_df['SNR'] = (plot_df['SNR'].astype(str) + ' dB, best of '
+                          + plot_df['decodes'].astype(str))
 
     coords = plot_df['tx_ll'].tolist() + plot_df['rx_ll'].tolist()
     latitudes = [ll[0] for ll in coords]

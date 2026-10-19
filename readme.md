@@ -174,6 +174,9 @@ Each analysis is documented below with its purpose, interpretation guide, and co
 
 **Interpretation from the dataset:**
 - 20m remains the strongest DX band but exhibits more variability in SNR across distance.
+- **Conclusion updated 2026-10-19.** 20m leads on spot count, not on reach. A
+  three-day capture puts 15m and 10m ahead on mean distance; this capture was
+  one afternoon, which is 20m's best hours.
 - 15m and 17m appear less consistent, suggesting this capture included both good openings and weaker marginal paths.
 - 80m and 40m behave more predictably, consistent with shorter-range ground/low-angle propagation.
 
@@ -200,6 +203,15 @@ Each analysis is documented below with its purpose, interpretation guide, and co
 **Actual results for `7510m_wspr_spots.tsv`:**
 - 38 paired measurements were matched within a ±20 minute window.
 - Mean `SNR_delta` = +6.3 dB, median = +7 dB.
+- **Conclusion updated 2026-10-19.** An earlier conclusion from 2026-06-07 was
+  wrong. It stated that this +6.3 dB mean showed a weaker receive path. That
+  was wrong because `SNR_delta` is not normalized for transmit power, and this
+  capture ran 10 W against a 5 W remote median. Per watt the mean is
+  **-0.9 dB, 95% CI [-4.6, +2.6]**, spanning zero. Better still, use the pairs
+  where both ends ran the same power and no correction is needed at all --
+  `matched_pairs()['same_power']`. This capture has exactly one, which is why
+  it cannot answer the question. The October 2026 capture has 66 and gives
+  **+11.0 dB, CI [+8.6, +13.3]**.
 - 27 pairs were positive and 9 were negative.
 - Largest positive deltas: `VE2DPF` on 20m (+23 dB), `DK8AF` on 20m (+22 dB), `KD3ANN` on 40m (+22 dB), `AA4GA` on 15m (+21 dB).
 
@@ -317,8 +329,24 @@ Each analysis is documented below with its purpose, interpretation guide, and co
 ## 2. Conclusions from this dataset
 
 1. **20m is the strongest DX band** in this capture, both by spot count and average distance.
+   **Conclusion updated 2026-10-19.** An earlier conclusion from 2026-06-07 was
+   wrong. It stated 20m led on both spot count and average distance. That was
+   wrong because the capture ran 18:20-21:36 UTC on one afternoon, which is
+   20m's best hours and before 40m and 80m open. Over three days 20m falls from
+   44% of reports to 25%, and on mean distance 15m (4,189 km) and 10m
+   (5,311 km) both beat it (3,728 km). 20m produces the most reports; it does
+   not reach the furthest.
 2. **The footprint is transatlantic**, with significant reception in central Europe alongside broad North American coverage.
 3. **Receive-side asymmetry is clearly present**, with a mean TX/RX SNR delta of +6.3 dB, suggesting the local RX path is weaker than the TX path.
+   **Conclusion updated 2026-10-19.** An earlier conclusion from 2026-06-07 was
+   wrong. It stated the +6.3 dB mean showed a receive deficit. That was wrong
+   because the delta was not normalized for transmit power: this capture ran
+   10 W against a 5 W remote median, so roughly 3 dB of it was simply extra
+   power. Normalized, the mean is -0.9 dB with a CI spanning zero. The deficit
+   is real -- the October 2026 three-day capture gives **+11.0 dB over the 66
+   pairs where both ends ran 5 W**, CI [+8.6, +13.3], no normalizing needed,
+   concentrated on 40m (+17.8) and 20m (+10.5) and absent on 30m -- but this
+   dataset did not establish it.
 4. **The antenna system performs best on midbands**, with normalized `k/W` values highest on 20m, 17m, and 15m.
 5. **Higher-band inner skip boundaries are far away** on 10m and 12m, consistent with a higher takeoff angle and a scarcity of very short first-hop paths on those frequencies.
 
