@@ -33,6 +33,60 @@ Note the readme is lowercase `readme.md`.
   `test_api_comparison.py`) because a plausible-looking great-circle map is the
   easiest thing in the world to get wrong.
 
+## Antenna sweeps, not just spots
+
+`antenna_sweep.py` reads a NanoVNA Touchstone file as SWR, return loss and
+feedpoint impedance, against the same `BAND_RANGES` the spot analysis uses so
+a band means one thing across the repository. `run_7510m_sweep_2026-11-24.py`
+is the first data set, `7510m_s11_sweep_2026-11-24.s2p`, 301 points from 1 to
+30 MHz.
+
+- **There is no `wspr_analysis` conda env on this machine**, whatever
+  `environment.yaml` says. Nothing in the root env has matplotlib either. The
+  sweep scripts were run with
+  `/home/natale/.conda/envs/terminal_map/bin/python`, which has matplotlib
+  3.11.2 and scipy.
+- **Interpolate before reading a narrow band.** The sweep steps 96.7 kHz and
+  30 m is 50 kHz wide, so no sweep point lands inside it and a nearest-point
+  lookup reports the band as absent. `interpolate_swr` exists for that, and
+  `band_summary` distinguishes "narrower than the sweep step" from "outside
+  the sweep" rather than returning nothing for both.
+- **The fundamental is the deepest low-frequency match, not the lowest
+  minimum.** `find_fundamental` picks by depth below 5 MHz. Taking the lowest
+  minimum caught a shallow 1.19 MHz dip and made every harmonic an 18% miss
+  against a frequency the antenna does not resonate on.
+- **`resonance_bandwidths` is the diagnostic worth running.** Loaded Q per
+  harmonic, from one sweep, cancels height, ground and feedline because every
+  row shares them. On 2026-11-24 it gave Q=2 at the fundamental against 24 to
+  59 for n=2 through 8, which is a loss signature and not a tuning result.
+- **Fifteen reactance crossings against eight SWR minima is normal**, not a
+  feedline artifact. An end-fed wire alternates series resonances (X rises
+  through zero) with parallel ones (X falls), and 2026-11-24 gives a clean
+  S-A-S-A-... of 8 and 7. Harmonics spaced 3.590 MHz is a 279 ns round trip,
+  which is 132 ft of wire and nothing else. A phase-slope fit over the whole
+  sweep returns ~134 ns, *below* the wire's own round trip, so it is not
+  measuring a feedline; do not read a line length out of it.
+- **SWR survives any feedline; R and X do not.** SWR depends only on the
+  magnitude of the reflection coefficient, so dip frequencies and the Q
+  figures hold at any measurement plane. A line rotates the impedance a full
+  turn per half wavelength, so the sign of X is only the antenna's if the
+  analyzer was at the antenna. Worth settling before R and X drive a tuning
+  decision.
+- **An SWR minimum is not a resonance** (X crossing zero), but on a deep dip
+  the distinction has no room to mean anything: the impedance is confined to
+  a circle of radius `50*2|G|/(1-|G|^2)`, so at SWR 1.09 nothing in the dip
+  can exceed 4.3 ohms reactive. 3.610, 10.763 and 21.397 MHz show no
+  crossing, each sitting at that bound. **That is not a loss signature and
+  does not corroborate the capacitor diagnosis** -- loaded Q does, and it
+  does so independently, since coax loss rises with frequency and would
+  broaden the high bands rather than the fundamental. `reactance_zeros`,
+  `minima_vs_zeros` and `plot_swr_and_reactance` are the functions.
+- **160 m and 60 m are deliberately absent** from `WSPR_DIAL_MHZ` and from the
+  figures. Not design bands of this antenna and not operated.
+
+The write-up is `_articles/7510-efhw-checkin-2026-11.md` in `hamradio-source`,
+unpublished pending the operator acting on its tuning plan.
+
 ## Findings worth knowing
 
 **Revised 2026-10-19 against a three-day capture on the same antenna**
