@@ -350,6 +350,43 @@ Each analysis is documented below with its purpose, interpretation guide, and co
 4. **The antenna system performs best on midbands**, with normalized `k/W` values highest on 20m, 17m, and 15m.
 5. **Higher-band inner skip boundaries are far away** on 10m and 12m, consistent with a higher takeoff angle and a scarcity of very short first-hop paths on those frequencies.
 
+### Added 2026-11-24: the band-hopping daylight capture
+
+`7510m_cyberdeck_2026-11-24_spots.tsv`, 3,723 spots over 13:16-22:00 UTC at 5 W,
+taken on the same day as the first NanoVNA sweep of this antenna and before any
+adjustment. `run_7510m_cyberdeck_2026-11-24.py` is the entry point. Three
+things from it change how the other captures should be read.
+
+1. **Normalize by transmit slot, not by total spots.** The deck hopped on a
+   rotation that gave each band between three and seven two-minute transmit
+   slots, so a total spot count ranks time on air as much as propagation. On
+   the totals 30m (628) beats 20m (545); per slot 20m (109.0) beats 30m
+   (104.7). The per-slot figure still carries time of day, because each band's
+   slots fall at its own hours, so it ranks the rotation and not the bands.
+2. **Compare the SNR/distance slope over matched hours.** This capture gives
+   -6.34 dB/decade, CI [-7.09, -5.59], against the published -7.0 for October.
+   That is not a change. The -7.0 is a three-day average including the
+   overnight hours, which are steeper; October restricted to 13:16-22:00 UTC
+   gives -6.14, CI [-6.55, -5.72], which brackets it. A daylight capture
+   belongs against the daylight restriction, not against the whole-capture
+   figure.
+3. **Asymmetry is not measurable from this capture.** Seven matched pairs,
+   three at equal power. The remote median power was 0.2 W against the deck's
+   5 W, and band hopping kept the same-band twenty-minute window from closing.
+   Per the note on `matched_pairs`, the answer is "not measurable" rather than
+   a normalized figure.
+
+One station, **AA1QR, is filtered out in the runner** as a receiver-side
+artifact. Its three spots are cross-band impossibilities: in each of its
+minutes, 133 to 193 other stations reported the deck on 40m while AA1QR alone
+reported 80m or 30m. Those three rows otherwise invent two 80m slots and one
+30m slot of one spot each, dropping the 80m per-slot figure from 72.5 to 54.6.
+
+**`analysis1_band_openings.png` does not mean what it means for a single-band
+capture.** It draws a line per band across the whole window, so the segments
+where a band was not transmitting read as closures. For a hopping rotation the
+per-slot table is the honest version.
+
 ---
 
 ## 3. Reproducing the environment

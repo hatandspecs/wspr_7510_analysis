@@ -22,9 +22,12 @@ Note the readme is lowercase `readme.md`.
 - **The live API download does not work yet.** Use the TSV path. The readme
   describes the API route as though it works; the blog write-up says plainly
   that it does not. Believe the blog.
-- **There are four datasets and four notebooks** — the 75-10 m EFHW, plus 15 m
-  and 20 m field-day dipoles and a center-loaded 40 m dipole. Comparisons
-  between antennas are the point; a number for one antenna alone is weak.
+- **There are four antennas and several captures** — the 75-10 m EFHW, plus
+  15 m and 20 m field-day dipoles and a center-loaded 40 m dipole. The EFHW
+  has three captures: June, the October three-day, and
+  `7510m_cyberdeck_2026-11-24_spots.tsv` (3,723 spots, 13:16-22:00 UTC, 5 W,
+  `run_7510m_cyberdeck_2026-11-24.py`). Comparisons between antennas are the
+  point; a number for one antenna alone is weak.
 - **Do not claim a change from a small sample.** Two spots out of nine is
   consistent with almost any true rate. This project has already produced one
   retraction from exactly that mistake; check whether a difference survives
@@ -45,7 +48,11 @@ is the first data set, `7510m_s11_sweep_2026-11-24.s2p`, 301 points from 1 to
   `environment.yaml` says. Nothing in the root env has matplotlib either. The
   sweep scripts were run with
   `/home/natale/.conda/envs/terminal_map/bin/python`, which has matplotlib
-  3.11.2 and scipy.
+  3.11.2 and scipy. **`terminal_map` has no seaborn, pandas or folium, so the
+  spot notebooks will not run in it.** Those need
+  `/home/natale/.conda/envs/repeater_monitoring/bin/python`, which is the only
+  env on this machine with seaborn, pandas, folium, scipy and matplotlib
+  together.
 - **Interpolate before reading a narrow band.** The sweep steps 96.7 kHz and
   30 m is 50 kHz wide, so no sweep point lands inside it and a nearest-point
   lookup reports the band as absent. `interpolate_swr` exists for that, and
@@ -122,9 +129,41 @@ the five did not survive.
 - **SSB at 100 W is best on 80 m** (62.8% of paths, 40 W median). 20 m now
   needs the same median power as 40 m, 126 W either way. The old "higher bands
   need far more power" came from a DX-only sample on those bands.
-- **Unchanged across both captures:** SNR vs distance, −7.2 dB/decade in June
-  and −7.0 in October, r = −0.35 and −0.34. That is what a real relationship
-  looks like measured twice, and it calibrates how much to trust the rest.
+- **Unchanged across all three captures:** SNR vs distance, −7.2 dB/decade in
+  June and −7.0 in October, r = −0.35 and −0.34. That is what a real
+  relationship looks like measured repeatedly, and it calibrates how much to
+  trust the rest. **It is a TX-side fit of SNR against log10(k)** — that is
+  how −7.0 and −7.2 were produced, and pooling both directions gives −5.8
+  instead, so reproduce it on `df[df['TX'] == CALLSIGN]` before comparing.
+
+**Added 2026-11-24, from the daylight band-hopping capture.** The same day as
+the first sweep, before any adjustment, so it is the before half of the
+tuning comparison and not a test of the capacitor diagnosis.
+
+- **Normalize by transmit slot.** The deck hops, and the rotation gave each
+  band three to seven two-minute slots, so total spot counts rank time on air
+  as much as propagation. On totals 30 m beats 20 m; per slot 20 m beats
+  30 m. The per-slot figure still carries time of day.
+- **Match the hours before comparing slopes.** This capture gives −6.34
+  dB/decade, CI [−7.09, −5.59]. Against the published −7.0 that reads as a
+  change and is not one: −7.0 is a three-day average including the steeper
+  overnight paths, and October restricted to 13:16−22:00 UTC gives −6.14, CI
+  [−6.55, −5.72], which brackets it.
+- **AA1QR is filtered out of the November capture** as a receiver-side
+  artifact, in the runner with a comment. All three of its spots are
+  cross-band impossibilities, reporting 80 m or 30 m in minutes when 133 to
+  193 other stations reported the deck on 40 m. Left in it invents three
+  one-spot slots and drops 80 m per slot from 72.5 to 54.6. Worth checking
+  for in any future capture: group by minute and look for a band with one
+  spot beside a band with hundreds.
+- **`analysis1_band_openings.png` misleads for a hopping capture.** It draws
+  one line per band across the whole window, so the stretches where a band
+  was simply not transmitting read as closures.
+- **80 m works, and that does not refute the Q=2 loss finding.** The 21:56
+  UTC slot reached 110 distinct receivers at 5 W, mean 2,143 km, out to
+  7,042 km. WSPR decodes ~30 dB below the noise, so a band can be several dB
+  down and still fill a map. Only a post-adjustment sweep settles the
+  capacitor question.
 
 ## How I work — standing preferences
 
